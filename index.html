@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Synth Keyboard</title>
+      <style>
+        body {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          min-height: 100vh;
+          margin: 0;
+          background-color: #333;
+        }
+
+        .keyboard {
+          position: relative;
+          display: flex;
+          width: 800px;
+          height: 200px;
+        }
+
+        .key {
+          position: absolute;
+          cursor: pointer;
+          transition: background-color 0.1s;
+        }
+
+        .white-key {
+          width: 60px;
+          height: 200px;
+          background-color: white;
+          border: 1px solid #ccc;
+          border-radius: 0 0 0 0;
+          z-index: 1;
+        }
+
+        .black-key {
+          position: absolute;
+          width: 40px;
+          height: 120px;
+          background-color: black;
+          border-radius: 0 0 0 0;
+          z-index: 2;
+          top: -30px;
+          left: 40px;
+        }
+
+        .white-key.active {
+          background-color: #ddd;
+        }
+
+        .black-key.active {
+          background-color: #333;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="keyboard">
+        <!-- White keys -->
+        <div class="key white-key" data-note="C4"></div>
+        <div class="key white-key" data-note="D4"></div>
+        <div class="key white-key" data-note="E4"></div>
+        <div class="key white-key" data-note="F4"></div>
+        <div class="key white-key" data-note="G4"></div>
+        <div class="key white-key" data-note="A4"></div>
+        <div class="key white-key" data-note="B4"></div>
+
+        <!-- Black keys -->
+        <div class="key black-key" style="left: 100px;" data-note="C#4"></div>
+        <div class="key black-key" style="left: 200px;" data-note="D#4"></div>
+        <div class="key black-key" style="left: 300px;" data-note="F#4"></div>
+        <div class="key black-key" style="left: 400px;" data-note="G#4"></div>
+        <div class="key black-key" style="left: 500px;" data-note="A#4"></div>
+
+        <!-- White keys (octave 5) -->
+        <div class="key white-key" data-note="C5"></div>
+        <div class="key white-key" data-note="D5"></div>
+        <div class="key white-key" data-note="E5"></div>
+        <div class="key white-key" data-note="F5"></div>
+        <div class="key white-key" data-note="G5"></div>
+        <div class="key white-key" data-note="A5"></div>
+        <div class="key white-key" data-note="B5"></div>
+
+        <!-- Black keys (octave 5) -->
+        <div class="key black-key" style="left: 100px;" data-note="C#5"></div>
+        <div class="key black-key" style="left: 200px;" data-note="D#5"></div>
+        <div class="key black-key" style="left: 300px;" data-note="F#5"></div>
+        <div class="key black-key" style="left: 400px;" data-note="G#5"></div>
+        <div class="key black-key" style="left: 500px;" data-note="A#5"></div>
+      </div>
+    </body>
+    <script>
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      let activeOscillators = {};
+
+      function getFrequency(note) {
+        const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+        const octave = parseInt(note.slice(-1));
+        const noteIndex = notes.indexOf(note.slice(0, -1));
+        return 440 * Math.pow(2, (noteIndex - 9) / 12 + (octave - 4));
+      }
+
+      function playNote(note) {
+        if (!activeOscillators[note]) {
+          const oscillator = audioContext.createOscillator();
+          const gainNode = audioContext.createGain();
+          
+          oscillator.type = 'sine';
+          oscillator.frequency.setValueAtTime(getFrequency(note), audioContext.currentTime);
+          
+          gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+          
+          oscillator.connect(gainNode);
+          gainNode.connect(audioContext.destination);
+          
+          oscillator.start();
+          activeOscillators[note] = { oscillator, gainNode };
+        }
+      }
+
+      function stopNote(note) {
+        if (activeOscillators[note]) {
+          const { oscillator, gainNode } = activeOscillators[note];
+          gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+          oscillator.stop(audioContext.currentTime + 0.1);
+          delete activeOscillators[note];
+        }
+      }
+
+      // Mouse events
+      document.querySelectorAll('.key').forEach(key => {
+        key.addEventListener('mousedown', () => {
+          const note = key.dataset.note;
+          key.classList.add('active');
+          playNote(note);
+        });
+
+        key.addEventListener('mouseup', () => {
+          const note = key.dataset.note;
+          key.classList.remove('active');
+          stopNote(note);
+        });
+
+        key.addEventListener('mouseleave', () => {
+          const note = key.dataset.note;
+          key.classList.remove('active');
+          stopNote(note);
+        });
+      });
+
+      // Keyboard events
+      const keyMap = {
+        'a': 'C4',
+        's': 'D4',
+        'd': 'E4',
+        'f': 'F4',
+        'g': 'G4',
+        'h': 'A4',
+        'j': 'B4',
+        'k': 'C5',
+        'l': 'D5'
+      };
+
+      document.addEventListener('keydown', (e) => {
+        if (!e.repeat && keyMap[e.key]) {
+          const note = keyMap[e.key];
+          const key = document.querySelector(`[data-note="${note}"]`);
+          if (key && !key.classList.contains('active')) {
+            key.classList.add('active');
+            playNote(note);
+          }
+        }
+      });
+
+      document.addEventListener('keyup', (e) => {
+        if (keyMap[e.key]) {
+          const note = keyMap[e.key];
+          const key = document.querySelector(`[data-note="${note}"]`);
+          if (key && key.classList.contains('active')) {
+            key.classList.remove('active');
+            stopNote(note);
+          }
+        }
+      });
+    </script>
